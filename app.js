@@ -439,8 +439,8 @@ function bindEvents() {
 
 async function init() {
   const [response, geoResponse] = await Promise.all([
-    fetch("./china_university_tto_seed.csv"),
-    fetch("./data/china-provinces.geojson"),
+    fetch("./china_university_tto_seed.csv?v=20260516-geo"),
+    fetch("./data/china-provinces.geojson?v=20260516-geo"),
   ]);
   const text = await response.text();
   state.provinceGeojson = await geoResponse.json();

@@ -23,3 +23,8 @@ http://localhost:8001/
 5. 保存后等待 GitHub Pages 生成访问链接。
 
 入口文件是 `index.html`。
+
+## 数据来源
+
+- 高校 TTO 信息：教育部基地名单、学校官网、学校科研院/技术转移机构页面。
+- 中国省级 GeoJSON：`cn-atlas` provinces 数据，见 https://github.com/BarbarossaWang/cn-atlas 。

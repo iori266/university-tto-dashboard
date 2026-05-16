@@ -76,6 +76,7 @@ const state = {
   schools: [],
   filtered: [],
   selected: null,
+  provinceGeojson: null,
   batch: "全部",
   region: "全部",
   search: "",
@@ -109,9 +110,6 @@ const el = {
     evidenceLink: document.querySelector("#detailEvidenceLink"),
   },
 };
-
-const cnOutline = "M108 380 L145 332 L132 291 L169 251 L170 213 L212 177 L254 185 L278 147 L331 136 L352 102 L414 114 L459 94 L504 132 L558 126 L592 172 L640 190 L659 238 L701 265 L684 312 L715 361 L670 394 L674 450 L619 458 L581 501 L518 495 L479 530 L424 507 L383 533 L339 503 L285 511 L248 473 L195 462 L178 415 Z";
-const islandPath = "M650 475 C670 468 685 475 688 493 C677 507 657 508 646 493 Z";
 
 function parseCsv(text) {
   const rows = [];
@@ -170,11 +168,44 @@ function enrich(row, index) {
 function project(lon, lat) {
   const minLon = 73;
   const maxLon = 135;
-  const minLat = 18;
+  const minLat = 17;
   const maxLat = 54;
-  const x = 76 + ((lon - minLon) / (maxLon - minLon)) * 640;
-  const y = 548 - ((lat - minLat) / (maxLat - minLat)) * 456;
+  const x = 58 + ((lon - minLon) / (maxLon - minLon)) * 680;
+  const y = 552 - ((lat - minLat) / (maxLat - minLat)) * 476;
   return [x, y];
+}
+
+function normalizeProvince(name) {
+  return name
+    .replace(/特别行政区$/, "")
+    .replace(/维吾尔自治区$/, "")
+    .replace(/壮族自治区$/, "")
+    .replace(/回族自治区$/, "")
+    .replace(/自治区$/, "")
+    .replace(/[省市]$/, "");
+}
+
+function ringPath(ring) {
+  return ring
+    .map(([lon, lat], index) => {
+      const [x, y] = project(lon, lat);
+      return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ")
+    .concat(" Z");
+}
+
+function geometryPath(geometry) {
+  if (!geometry) return "";
+  if (geometry.type === "Polygon") {
+    return geometry.coordinates.map(ringPath).join(" ");
+  }
+  if (geometry.type === "MultiPolygon") {
+    return geometry.coordinates
+      .flatMap((polygon) => polygon.map(ringPath))
+      .join(" ");
+  }
+  return "";
 }
 
 function applyFilters() {
@@ -231,6 +262,26 @@ function renderMetrics() {
 
 function renderMap() {
   const selectedId = state.selected?.id;
+  const provinceCounts = state.filtered.reduce((acc, school) => {
+    acc[school.province] = (acc[school.province] || 0) + 1;
+    return acc;
+  }, {});
+  const maxProvinceCount = Math.max(...Object.values(provinceCounts), 1);
+  const provinces =
+    state.provinceGeojson?.features
+      ?.map((feature) => {
+        const rawName = feature.properties?.地名 || feature.properties?.name || "";
+        const province = normalizeProvince(rawName);
+        const count = provinceCounts[province] || 0;
+        const alpha = count ? 0.28 + (count / maxProvinceCount) * 0.5 : 0.1;
+        const fill = count ? `rgba(15, 140, 140, ${alpha.toFixed(2)})` : "rgba(228, 237, 239, 0.86)";
+        return `
+          <path class="province-shape ${count ? "has-schools" : ""}" d="${geometryPath(feature.geometry)}" fill="${fill}">
+            <title>${rawName}${count ? ` · ${count} 所高校` : ""}</title>
+          </path>
+        `;
+      })
+      .join("") || "";
   const points = state.filtered
     .map((school, index) => {
       const [x, y] = project(school.lon + (index % 4) * 0.22, school.lat + (index % 3) * 0.18);
@@ -248,18 +299,12 @@ function renderMap() {
   el.map.innerHTML = `
     <svg viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet">
       <defs>
-        <linearGradient id="land" x1="0%" x2="100%" y1="10%" y2="90%">
-          <stop offset="0%" stop-color="#d9eee9"></stop>
-          <stop offset="55%" stop-color="#f2efe4"></stop>
-          <stop offset="100%" stop-color="#dceaf4"></stop>
-        </linearGradient>
         <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
           <path d="M 42 0 L 0 0 0 42" fill="none" stroke="#c9d8df" stroke-width="0.7" opacity="0.55"></path>
         </pattern>
       </defs>
       <rect width="800" height="600" fill="url(#grid)"></rect>
-      <path d="${cnOutline}" fill="url(#land)" stroke="#91aeb5" stroke-width="2"></path>
-      <path d="${islandPath}" fill="#d9eee9" stroke="#91aeb5" stroke-width="1.6"></path>
+      <g class="province-layer">${provinces}</g>
       <text x="135" y="160" class="map-label">西北</text>
       <text x="510" y="176" class="map-label">华北 / 东北</text>
       <text x="540" y="355" class="map-label">华东</text>
@@ -393,8 +438,12 @@ function bindEvents() {
 }
 
 async function init() {
-  const response = await fetch("./china_university_tto_seed.csv");
+  const [response, geoResponse] = await Promise.all([
+    fetch("./china_university_tto_seed.csv"),
+    fetch("./data/china-provinces.geojson"),
+  ]);
   const text = await response.text();
+  state.provinceGeojson = await geoResponse.json();
   state.schools = parseCsv(text).map(enrich);
   state.selected = state.schools[0];
   bindEvents();

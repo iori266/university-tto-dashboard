@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>中国高校科研成果地图</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">研</div>
+          <div>
+            <p class="eyebrow">University TTO Atlas</p>
+            <h1>高校科研成果地图</h1>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="searchInput">搜索高校或机构</label>
+          <div class="search-box">
+            <span aria-hidden="true">⌕</span>
+            <input id="searchInput" type="search" placeholder="输入学校、TTO、城市" />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>认定批次</label>
+          <div class="segmented" role="group" aria-label="认定批次筛选">
+            <button class="segment active" data-batch="全部">全部</button>
+            <button class="segment" data-batch="首批">首批</button>
+            <button class="segment" data-batch="第二批">第二批</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="regionSelect">区域</label>
+          <select id="regionSelect">
+            <option value="全部">全部区域</option>
+            <option value="华北">华北</option>
+            <option value="东北">东北</option>
+            <option value="华东">华东</option>
+            <option value="华中">华中</option>
+            <option value="华南">华南</option>
+            <option value="西南">西南</option>
+            <option value="西北">西北</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label>信息完整度</label>
+          <label class="toggle">
+            <input id="verifiedOnly" type="checkbox" />
+            <span></span>
+            仅看已有 TTO 详情
+          </label>
+        </div>
+
+        <div class="insight-card">
+          <p class="eyebrow">当前视图</p>
+          <strong id="activeSummary">正在载入数据</strong>
+          <span id="activeHint">地图点位会随筛选更新</span>
+        </div>
+      </aside>
+
+      <main class="dashboard">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">教育部科技成果转化和技术转移基地</p>
+            <h2>科研成果转化网络总览</h2>
+          </div>
+          <div class="top-actions">
+            <a class="ghost-button" href="./china_university_tto_seed.xlsx">下载 Excel</a>
+            <a class="ghost-button primary" href="./china_university_tto_seed_utf8_bom.csv">下载 CSV</a>
+          </div>
+        </header>
+
+        <section class="kpi-grid" aria-label="核心指标">
+          <article class="metric">
+            <span>高校数量</span>
+            <strong id="metricTotal">--</strong>
+            <small>纳入地图样本</small>
+          </article>
+          <article class="metric">
+            <span>TTO 已识别</span>
+            <strong id="metricTto">--</strong>
+            <small>含机构名称或网址</small>
+          </article>
+          <article class="metric">
+            <span>覆盖省份</span>
+            <strong id="metricProvince">--</strong>
+            <small>按校区所在省份聚合</small>
+          </article>
+          <article class="metric">
+            <span>首批占比</span>
+            <strong id="metricFirst">--</strong>
+            <small>国家级基地批次</small>
+          </article>
+        </section>
+
+        <section class="map-layout">
+          <article class="map-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Geospatial View</p>
+                <h3>高校成果转化点位</h3>
+              </div>
+              <div class="legend">
+                <span><i class="dot first"></i>首批</span>
+                <span><i class="dot second"></i>第二批</span>
+              </div>
+            </div>
+            <div id="mapCanvas" class="map-canvas" aria-label="中国高校科研成果地图"></div>
+          </article>
+
+          <aside class="detail-panel">
+            <p class="eyebrow">Selected Institution</p>
+            <h3 id="detailTitle">选择地图点位</h3>
+            <p id="detailMeta">点击任意高校查看 TTO、联系方式和证据链接。</p>
+            <dl class="detail-list">
+              <div><dt>TTO</dt><dd id="detailTto">--</dd></div>
+              <div><dt>地区</dt><dd id="detailPlace">--</dd></div>
+              <div><dt>联系方式</dt><dd id="detailContact">--</dd></div>
+              <div><dt>备注</dt><dd id="detailNotes">--</dd></div>
+            </dl>
+            <div class="detail-actions">
+              <a id="detailTtoLink" class="ghost-button primary disabled" href="#" target="_blank" rel="noreferrer">访问 TTO</a>
+              <a id="detailEvidenceLink" class="ghost-button disabled" href="#" target="_blank" rel="noreferrer">查看证据</a>
+            </div>
+          </aside>
+        </section>
+
+        <section class="lower-grid">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Regional Density</p>
+                <h3>省份分布排行</h3>
+              </div>
+            </div>
+            <div id="provinceBars" class="bar-list"></div>
+          </article>
+
+          <article class="panel table-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Institution List</p>
+                <h3>高校 TTO 清单</h3>
+              </div>
+              <span id="tableCount" class="count-pill">--</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>高校</th>
+                    <th>批次</th>
+                    <th>省份</th>
+                    <th>TTO / 成果转化机构</th>
+                    <th>联系</th>
+                  </tr>
+                </thead>
+                <tbody id="schoolRows"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
